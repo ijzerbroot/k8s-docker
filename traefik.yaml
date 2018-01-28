@@ -1,0 +1,165 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: traefik-ingress-controller
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: traefik-ingress-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik-ingress-controller
+subjects:
+- kind: ServiceAccount
+  name: traefik-ingress-controller
+  namespace: kube-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-config
+  namespace: kube-system
+  labels:
+    k8s-app: traefik-ingress-lb
+    kubernetes.io/cluster-service: "true"
+data:
+  traefik.toml: |-
+    # traefik.toml
+    [accessLog]
+
+    defaultEntryPoints = ["http","management"]
+    [entryPoints]
+      [entryPoints.http]
+      address = ":80"
+      [entryPoints.management]
+      address = ":8888"
+      [entryPoints.management.auth.basic]
+      users = ["admin:$apr1$FOFQY2lF$1R/dTOgdvqmA2.PTUCUIt1"]
+      #  [entryPoints.http.redirect]
+      #  entryPoint = "https"
+      #[entryPoints.https]
+      #address = ":443"
+      #[entryPoints.https.tls]
+      #minVersion = "VersionTLS12"
+      #cipherSuites = ["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256","TLS_RSA_WITH_AES_256_GCM_SHA384"]
+      #  [[entryPoints.https.tls.certificates]]
+      #  certFile = "certs/cert.crt"
+      #  keyFile = "certs/key.key"
+      #[backends]
+      #  [backends.scope]
+      #    [backends.scope.server1]
+      #    url = "http://127.0.0.1:4040"
+
+      #[frontends]
+      #  [frontends.scope]
+      #  backend = "scope"
+      #    [frontends.scope.routes.test_1]
+      #    rule = "Host:scope.test.lift.swarm"
+      #    entryPoints = "management"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik-ingress-controller
+  namespace: kube-system
+---
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: traefik-ingress-controller
+  namespace: kube-system
+  labels:
+    k8s-app: traefik-ingress-lb
+    kubernetes.io/cluster-service: "true"
+spec:
+  template:
+    metadata:
+      labels:
+        k8s-app: traefik-ingress-lb
+        name: traefik-ingress-lb
+    spec:
+      serviceAccountName: traefik-ingress-controller
+      terminationGracePeriodSeconds: 60
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - image: traefik
+        name: traefik-ingress-lb
+        ports:
+        - name: http
+          containerPort: 80
+          hostPort: 80
+        - name: admin
+          containerPort: 8080
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: traefik-config
+          mountPath: /config
+          readOnly: true
+          #subPath: traefik.toml
+        args:
+        - --web
+        - --kubernetes
+        - --configfile=/config/traefik.toml
+#        - -l WARN
+      volumes:
+      - name: traefik-config
+        configMap:
+          defaultMode: 0600
+          name: traefik-config
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-web-ui
+  namespace: kube-system
+spec:
+  selector:
+    k8s-app: traefik-ingress-lb
+  ports:
+    - protocol: TCP
+      port: 80
+      name: web
+    - protocol: TCP
+      port: 8080
+      name: admin
+#  type: NodePort
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: traefik-web-ui
+  namespace: kube-system
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: traefik-ui.k8shc
+    http:
+      paths:
+        - backend:
+            serviceName: traefik-web-ui
+            servicePort: web
