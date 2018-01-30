@@ -1,0 +1,278 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: gitlab
+  labels:
+    k8s-app: gitlab
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "services"
+  - "namespaces"
+  - "endpoints"
+  verbs:
+  - "get"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  namespace: default
+  name: gitlab
+  labels:
+    k8s-app: gitlab
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+subjects:
+- kind: ServiceAccount
+  name: gitlab
+  namespace: default
+  apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: gitlab
+  apiGroup: ""
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitlab
+  namespace: default
+  labels:
+    k8s-app: gitlab
+    version: v1
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: gitlab-data-volume
+  labels:
+    type: local
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/gitlabdata"
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: gitlab-logs-volume
+  labels:
+    type: local
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/gitlablogs"
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: gitlab-config-volume
+  labels:
+    type: local
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 100Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/gitlabconfig"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitlab-data-claim
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+  namespace: default
+  labels:
+    k8s-app: gitlab
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitlab-logs-claim
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+  namespace: default
+  labels:
+    k8s-app: gitlab
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitlab-config-claim
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+  namespace: default
+  labels:
+    k8s-app: gitlab
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: gitlab
+  namespace: default
+  labels:
+    k8s-app: gitlab
+    version: v1
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: gitlab
+      version: v1
+  template:
+    metadata:
+      labels:
+        k8s-app: gitlab
+        version: v1
+        kubernetes.io/cluster-service: "true"
+    spec:
+      serviceAccountName: gitlab
+#      securityContext:
+#        runAsUser: 2000
+#        fsGroup: 2000
+#      affinity:
+# Make sure you have labelled the worker nodes with kubectl label nodes nodename role=worker-node
+#        nodeAffinity:
+#          requiredDuringSchedulingIgnoredDuringExecution:
+#            nodeSelectorTerms:
+#            - matchExpressions:
+#              - key: role
+#                operator: In
+#                values:
+#                - worker-node
+      volumes:
+        - name: gitlabdata
+          persistentVolumeClaim:
+            claimName: gitlab-data-claim
+        - name: gitlablogs
+          persistentVolumeClaim:
+            claimName: gitlab-logs-claim
+        - name: gitlabconfig
+          persistentVolumeClaim:
+            claimName: gitlab-config-claim
+      containers:
+        - image: gitlab/gitlab-ce:latest
+#            allowPrivilegeEscalation: false
+          name: gitlab
+#          securityContext:
+#            allowPrivilegeEscalation: false
+#          resources:
+            # need more cpu upon initialization, therefore burstable class
+#            limits:
+#              memory: 1200Mi
+#            requests:
+#              memory: 800Mi
+          ports:
+            - containerPort: 443
+              name: https
+              protocol: TCP
+            - containerPort: 80
+              name: http
+              protocol: TCP
+            - containerPort: 22
+              name: ssh
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/opt/gitlab
+              name: gitlabdata
+            - mountPath: /var/log/gitlab
+              name: gitlablogs
+            - mountPath: /etc/gitlab
+              name: gitlabconfig
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab
+  namespace: default
+  labels:
+    k8s-app: gitlab
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+    kubernetes.io/name: "gitlab"
+spec:
+  ports:
+  - port: 443
+    name: https
+    protocol: TCP
+    targetPort: https
+  - port: 80
+    name: http
+    protocol: TCP
+    targetPort: http
+  - port: 22
+    name: ssh
+    protocol: TCP
+    targetPort: ssh
+  selector:
+    k8s-app: gitlab
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: gitlab-ui
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: gitlab.k8shc
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: gitlab
+            servicePort: 80
+  - host: gitlabs.k8shc
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: gitlab
+            servicePort: 443

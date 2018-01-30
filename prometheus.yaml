@@ -45,6 +45,23 @@ subjects:
   name: prometheus
   namespace: monitoring
 ---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: prometheus-data-volume
+  labels:
+    type: local
+  annotations:
+    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 4Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/prometheusdata"
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -55,7 +72,7 @@ metadata:
   labels:
     k8s-app: prometheus
 spec:
-  storageClassName: rook-block
+  storageClassName: manual
   accessModes:
   - ReadWriteOnce
   resources:
@@ -397,6 +414,15 @@ data:
         annotations:
           summary: "Server storage is almost full"
           description: "Docker host storage usage is {{ humanize $value}}%. Reported by instance {{ $labels.instance }} of job {{ $labels.job }}."
+
+      - alert: testalertfromlog
+        expr: logsrch_testalert > 0
+        for: 5s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Test alert message. This is just a drill"
+          description: "Test alert message. This is just a drill."
 
     - name: containers
       rules:

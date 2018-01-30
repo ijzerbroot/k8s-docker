@@ -1,0 +1,1 @@
+helm install stable/telegraf --set outputs.influxdb.urls=http://influxdb.default:8086

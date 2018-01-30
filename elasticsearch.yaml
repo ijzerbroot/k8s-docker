@@ -47,6 +47,23 @@ metadata:
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 ---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: es-data-volume
+  labels:
+    type: local
+  annotations:
+    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/esdata"
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -57,7 +74,7 @@ metadata:
   labels:
     k8s-app: elasticsearch
 spec:
-  storageClassName: rook-block
+  storageClassName: manual
   accessModes:
   - ReadWriteOnce
   resources:

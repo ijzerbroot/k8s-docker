@@ -41,13 +41,18 @@ data:
     - type: log
       paths:
         - /var/lib/docker/containers/*/*.log
-      exclude_lines: ['json.go:32: ERR Error decoding JSON','"url":"/logtrail','Running command: ceph osd dump','\[DBG\]',':4040/api:']
+      exclude_lines: ['json.go:32: ERR Error decoding JSON','"url":"/logtrail','Running command: ceph osd dump','\[DBG\]',':4040/api:','container: dropping stats for']
       json.message_key: log
       json.keys_under_root: true
+      tail_files: true
       processors:
         - add_kubernetes_metadata:
             in_cluster: true
             namespace: ${POD_NAMESPACE}
+        - drop_event:
+            when:
+              contains:
+                kubernetes.pod.name: kube-apiserver-docker-for-desktop
         - drop_event:
             when:
               contains:

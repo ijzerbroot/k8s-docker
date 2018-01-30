@@ -47,6 +47,36 @@ metadata:
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 ---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: influxdb-data-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 3Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/influxdbdata"
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: influxdb-meta-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/influxdbmeta"
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -55,7 +85,7 @@ metadata:
   labels:
     k8s-app: influxdb
 spec:
-  storageClassName: rook-block
+  storageClassName: manual
   accessModes:
   - ReadWriteOnce
   resources:
@@ -70,7 +100,7 @@ metadata:
   labels:
     k8s-app: influxdb
 spec:
-  storageClassName: rook-block
+  storageClassName: manual
   accessModes:
   - ReadWriteOnce
   resources:

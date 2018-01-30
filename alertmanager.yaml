@@ -80,6 +80,23 @@ data:
               api_url: 'https://hooks.slack.com/services/token'
 
 ---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: am-data-volume
+  labels:
+    type: local
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/amdata"
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -90,7 +107,7 @@ metadata:
   labels:
     k8s-app: alertmanager
 spec:
-  storageClassName: rook-block
+  storageClassName: manual
   accessModes:
   - ReadWriteOnce
   resources:
