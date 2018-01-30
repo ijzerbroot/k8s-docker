@@ -62,7 +62,8 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/data/esdata"
+    path: "/var/lib/kubedata/esdata"
+    type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

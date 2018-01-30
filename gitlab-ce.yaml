@@ -62,7 +62,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/data/gitlabdata"
+    path: "/var/lib/kubedata/gitlabdata"
 ---
 kind: PersistentVolume
 apiVersion: v1
@@ -79,7 +79,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/data/gitlablogs"
+    path: "/var/lib/kubedata/gitlablogs"
 ---
 kind: PersistentVolume
 apiVersion: v1
@@ -96,7 +96,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/data/gitlabconfig"
+    path: "/var/lib/kubedata/gitlabconfig"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -173,6 +173,7 @@ spec:
         kubernetes.io/cluster-service: "true"
     spec:
       serviceAccountName: gitlab
+      hostname: gitlab
 #      securityContext:
 #        runAsUser: 2000
 #        fsGroup: 2000

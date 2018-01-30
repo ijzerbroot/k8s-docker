@@ -95,7 +95,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/data/amdata"
+    path: "/var/lib/kubedata/amdata"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

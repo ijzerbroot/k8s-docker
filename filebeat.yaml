@@ -56,6 +56,14 @@ data:
         - drop_event:
             when:
               contains:
+                kubernetes.pod.name: etcd-docker-for-desktop
+        - drop_event:
+            when:
+              contains:
+                kubernetes.labels.k8s-app: gitlab
+        - drop_event:
+            when:
+              contains:
                 kubernetes.labels.k8s-app: kube-state-metrics
         - drop_event:
             when:

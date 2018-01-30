@@ -1,0 +1,74 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: gitlab-ci-runner
+  namespace: gitlab-build
+  labels:
+    app: gitlab-ci-runner
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  replicas: 1
+  serviceName: gitlab-ci-runner
+  template:
+    metadata:
+      labels:
+        app: gitlab-ci-runner
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - gitlab-ci-runner
+      initContainers:
+      - image: gitlab/gitlab-runner:v10.3.0
+        command:
+          - /bin/bash
+          - -c
+          - "/usr/bin/gitlab-ci-multi-runner unregister -t $(GITLAB_CI_TOKEN) -n $(RUNNER_NAME) || true"
+        name: unregister-runner
+        envFrom:
+        - secretRef:
+            name: gitlab-ci-token
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 999
+      serviceAccountName: gitlab-ci
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        supplementalGroups: [999]
+      containers:
+      - image: gitlab/gitlab-runner:v10.3.0
+        command:
+        - /bin/bash
+        - -c
+        - "/usr/bin/gitlab-ci-multi-runner register -r '$(GITLAB_CI_TOKEN)'; sed -i 's/^concurrent.*/concurrent = $(RUNNER_REQUEST_CONCURRENCY)/' /home/gitlab-runner/.gitlab-runner/config.toml; exec /usr/bin/gitlab-ci-multi-runner run"
+        envFrom:
+        - configMapRef:
+            name: gitlab-ci-runner-cm
+        - secretRef:
+            name: gitlab-ci-token
+        env:
+        - name: RUNNER_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        ports:
+        - containerPort: 9100
+          name: http-metrics
+          protocol: TCP
+        name: gitlab-ci-runner
+        lifecycle:
+          preStop:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - "/usr/bin/gitlab-ci-multi-runner unregister -t $(GITLAB_CI_TOKEN) -n $(RUNNER_NAME)"
+      restartPolicy: Always

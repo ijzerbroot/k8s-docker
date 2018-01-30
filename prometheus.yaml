@@ -60,7 +60,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/data/prometheusdata"
+    path: "/var/lib/kubedata/prometheusdata"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

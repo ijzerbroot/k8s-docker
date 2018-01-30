@@ -60,7 +60,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/data/influxdbdata"
+    path: "/var/lib/kubedata/influxdbdata"
 ---
 kind: PersistentVolume
 apiVersion: v1
@@ -75,7 +75,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/data/influxdbmeta"
+    path: "/var/lib/kubedata/influxdbmeta"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

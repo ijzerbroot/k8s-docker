@@ -1,0 +1,36 @@
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: jenkins-data-volume
+  labels:
+    type: local
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/lib/kubedata/jenkinsdata"
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-data-claim
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+  namespace: default
+  labels:
+    k8s-app: jenkins
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---

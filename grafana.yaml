@@ -61,7 +61,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/data/grafanadata"
+    path: "/var/lib/kubedata/grafanadata"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
