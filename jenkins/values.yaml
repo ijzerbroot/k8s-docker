@@ -1,4 +1,4 @@
-# helm install --namespace default --name jenkins -f values.yaml --set ServiceType: ClusterIP stable/jenkins
+# helm install --namespace default --name jenkins -f values.yaml --set ServiceType=ClusterIP stable/jenkins
 # Default values for jenkins.
 # This is a YAML-formatted file.
 # Declare name/value pairs to be passed into your templates.
@@ -94,8 +94,9 @@ Master:
 
 Agent:
   Enabled: true
-  Image: jenkins/jnlp-slave
-  ImageTag: 3.10-1
+  #Image: jenkins/jnlp-slave
+  Image: maven:3.3.9-jdk-8-alpine
+  ImageTag: latest
 # ImagePullSecret: jenkins
   Component: "jenkins-slave"
   Privileged: false
@@ -108,6 +109,9 @@ Agent:
   # Configure the attributes as they appear in the corresponding Java class for that type
   # https://github.com/jenkinsci/kubernetes-plugin/tree/master/src/main/java/org/csanchez/jenkins/plugins/kubernetes/volumes
   volumes:
+    - type: HostPath
+      hostPath: /var/run/docker.sock
+      mountPath: /var/run/docker.sock
   # - type: Secret
   #   secretName: mysecret
   #   mountPath: /var/myapp/mysecret
@@ -120,7 +124,7 @@ Persistence:
   ## A manually managed Persistent Volume and Claim
   ## Requires Persistence.Enabled: true
   ## If defined, PVC must be created manually before volume will be bound
-  # ExistingClaim:
+  ExistingClaim: jenkins-data-claim
 
   ## jenkins data Persistent Volume Storage Class
   ## If defined, storageClassName: <storageClass>
@@ -131,13 +135,19 @@ Persistence:
   ##
   # StorageClass: "-"
 
+  #StorageClass: manual
   Annotations: {}
-  AccessMode: ReadWriteOnce
-  Size: 8Gi
+  #AccessMode: ReadWriteOnce
+  #Size: 8Gi
   volumes:
+  #  - name: jenkinsdata
+  #    persistentVolumeClaim:
+  #      claimName: jenkins-data-claim
   #  - name: nothing
   #    emptyDir: {}
   mounts:
+    #- mountPath: /var/jenkins_home
+    #  name: jenkinsdata
   #  - mountPath: /var/nothing
   #    name: nothing
   #    readOnly: true

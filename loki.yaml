@@ -1,9 +1,9 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: grafana
+  name: loki
   labels:
-    k8s-app: grafana
+    k8s-app: loki
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 rules:
@@ -20,28 +20,28 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   namespace: default
-  name: grafana
+  name: loki
   labels:
-    k8s-app: grafana
+    k8s-app: loki
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 subjects:
 - kind: ServiceAccount
-  name: grafana
+  name: loki
   namespace: default
   apiGroup: ""
 roleRef:
   kind: ClusterRole
-  name: grafana
+  name: loki
   apiGroup: ""
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: grafana
+  name: loki
   namespace: default
   labels:
-    k8s-app: grafana
+    k8s-app: loki
     version: v1
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
@@ -49,7 +49,7 @@ metadata:
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: grafana-data-volume
+  name: loki-data-volume
   labels:
     type: local
 #  annotations:
@@ -57,36 +57,36 @@ metadata:
 spec:
   storageClassName: manual
   capacity:
-    storage: 1Gi
+    storage: 8Gi
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/var/lib/kubedata/grafanadata"
+    path: "/var/lib/kubedata/lokidata"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: grafanadata-claim
+  name: lokidata-claim
 #  annotations:
 #    pv.beta.kubernetes.io/gid: "2000"
   namespace: default
   labels:
-    k8s-app: grafana
+    k8s-app: loki
 spec:
   storageClassName: manual
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: 8Gi
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: grafana
+  name: loki
   namespace: default
   labels:
-    k8s-app: grafana
+    k8s-app: loki
     version: v1
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
@@ -94,24 +94,24 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      k8s-app: grafana
+      k8s-app: loki
       version: v1
   template:
     metadata:
       labels:
-        k8s-app: grafana
+        k8s-app: loki
         version: v1
         kubernetes.io/cluster-service: "true"
     spec:
-      serviceAccountName: grafana
+      serviceAccountName: loki
       volumes:
-        - name: grafanadata
+        - name: lokidata
           persistentVolumeClaim:
-            claimName: grafanadata-claim
+            claimName: lokidata-claim
       containers:
-#        - image: docker.elastic.co/grafana/kibana-oss:6.1.0
-        - image: grafana/grafana
-          name: grafana
+#        - image: docker.elastic.co/loki/kibana-oss:6.1.0
+        - image: localhost/loki:latest
+          name: loki
           resources:
             # need more cpu upon initialization, therefore burstable class
             limits:
@@ -119,46 +119,29 @@ spec:
             requests:
               cpu: 100m
           ports:
-            - containerPort: 3000
-              name: grafanaport
+            - containerPort: 22
+              name: lokiport
               protocol: TCP
           volumeMounts:
-            - mountPath: /var/lib/grafana
-              name: grafanadata
+            - mountPath: /var/lib/loki
+              name: lokidata
       restartPolicy: Always
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: grafana
+  name: loki
   namespace: default
   labels:
-    k8s-app: grafana
+    k8s-app: loki
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
-    kubernetes.io/name: "Kibana"
+    kubernetes.io/name: "Loki"
 spec:
+  type: NodePort
   ports:
-  - port: 3000
+  - port: 30022
     protocol: TCP
-    targetPort: grafanaport
+    nodePort: 30022
   selector:
-    k8s-app: grafana
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: grafana-ui
-  namespace: default
-  annotations:
-    kubernetes.io/ingress.class: traefik
-#    traefik.frontend.rule.type: PathPrefixStrip
-spec:
-  rules:
-  - host: grafana.k8shc
-    http:
-      paths:
-        - path: /
-          backend:
-            serviceName: grafana
-            servicePort: 3000
+    k8s-app: loki

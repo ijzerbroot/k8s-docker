@@ -10,7 +10,7 @@ metadata:
 spec:
   storageClassName: manual
   capacity:
-    storage: 10Gi
+    storage: 8Gi
   accessModes:
     - ReadWriteOnce
   hostPath:
@@ -25,12 +25,12 @@ metadata:
 #    pv.beta.kubernetes.io/gid: "2000"
   namespace: default
   labels:
-    k8s-app: jenkins
+    component: jenkins-jenkins-master
 spec:
   storageClassName: manual
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
+      storage: 8Gi
 ---
