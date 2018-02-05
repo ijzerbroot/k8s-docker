@@ -1,9 +1,9 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: loki
+  name: artifactory
   labels:
-    k8s-app: loki
+    k8s-app: artifactory
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 rules:
@@ -20,28 +20,28 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   namespace: default
-  name: loki
+  name: artifactory
   labels:
-    k8s-app: loki
+    k8s-app: artifactory
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 subjects:
 - kind: ServiceAccount
-  name: loki
+  name: artifactory
   namespace: default
   apiGroup: ""
 roleRef:
   kind: ClusterRole
-  name: loki
+  name: artifactory
   apiGroup: ""
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: loki
+  name: artifactory
   namespace: default
   labels:
-    k8s-app: loki
+    k8s-app: artifactory
     version: v1
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
@@ -49,7 +49,7 @@ metadata:
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: loki-data-volume
+  name: artifactory-data-volume
   labels:
     type: local
 #  annotations:
@@ -57,36 +57,36 @@ metadata:
 spec:
   storageClassName: manual
   capacity:
-    storage: 8Gi
+    storage: 6Gi
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/var/lib/kubedata/lokidata"
+    path: "/var/lib/kubedata/artifactorydata"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: lokidata-claim
+  name: artifactory-data-claim
 #  annotations:
 #    pv.beta.kubernetes.io/gid: "2000"
   namespace: default
   labels:
-    k8s-app: loki
+    k8s-app: artifactory
 spec:
   storageClassName: manual
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 8Gi
+      storage: 6Gi
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: loki
+  name: artifactory
   namespace: default
   labels:
-    k8s-app: loki
+    k8s-app: artifactory
     version: v1
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
@@ -94,26 +94,24 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      k8s-app: loki
+      k8s-app: artifactory
       version: v1
   template:
     metadata:
       labels:
-        k8s-app: loki
+        k8s-app: artifactory
         version: v1
         kubernetes.io/cluster-service: "true"
     spec:
-      serviceAccountName: loki
+      serviceAccountName: artifactory
       volumes:
-        - name: lokidata
+        - name: artifactorydata
           persistentVolumeClaim:
-            claimName: lokidata-claim
+            claimName: artifactory-data-claim
       containers:
-#        - image: docker.elastic.co/loki/kibana-oss:6.1.0
-        - image: localhost/loki:latest
-          imagePullPolicy: Never
-          name: loki
-          command: ["/usr/sbin/sshd", "-D"]
+#        - image: docker.elastic.co/artifactory/kibana-oss:6.1.0
+        - image: docker.bintray.io/jfrog/artifactory-oss:latest
+          name: artifactory
           resources:
             # need more cpu upon initialization, therefore burstable class
             limits:
@@ -121,29 +119,46 @@ spec:
             requests:
               cpu: 100m
           ports:
-            - containerPort: 22
-              name: lokiport
+            - containerPort: 8081
+              name: artifactoryport
               protocol: TCP
           volumeMounts:
-            - mountPath: /home
-              name: lokidata
+            - mountPath: /var/opt/jfrog/artifactory
+              name: artifactorydata
       restartPolicy: Always
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: loki
+  name: artifactory
   namespace: default
   labels:
-    k8s-app: loki
+    k8s-app: artifactory
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
-    kubernetes.io/name: "Loki"
+    kubernetes.io/name: "Artifactory"
 spec:
-  type: NodePort
   ports:
-  - port: 30022
+  - port: 8081
     protocol: TCP
-    nodePort: 30022
+    targetPort: artifactoryport
   selector:
-    k8s-app: loki
+    k8s-app: artifactory
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: artifactory-ui
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+  #  traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - host: artifactory.k8shc
+    http:
+      paths:
+        - path: /artifactory
+          backend:
+            serviceName: artifactory
+            servicePort: 8081

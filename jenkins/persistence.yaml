@@ -34,3 +34,38 @@ spec:
     requests:
       storage: 8Gi
 ---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: jenkins-maven-volume
+  labels:
+    type: local
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 4Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/lib/kubedata/jenkins-maven"
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: maven-repo
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+  namespace: default
+  labels:
+    component: jenkins-jenkins-slave
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+---
