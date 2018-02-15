@@ -77,8 +77,7 @@ data:
               text: "{{ .CommonAnnotations.description }}"
               username: 'Prometheus'
               channel: '#ops-exceptions'
-              api_url: 'https://hooks.slack.com/services/token'
-
+              api_url: 'https://localhost/services/token'
 ---
 kind: PersistentVolume
 apiVersion: v1
