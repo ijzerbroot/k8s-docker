@@ -60,6 +60,10 @@ data:
         - drop_event:
             when:
               contains:
+                kubernetes.labels.k8s-app: elastalert
+        - drop_event:
+            when:
+              contains:
                 kubernetes.labels.k8s-app: gitlab
         - drop_event:
             when:

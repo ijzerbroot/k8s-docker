@@ -68,7 +68,8 @@ data:
     # If an alert fails for some reason, ElastAlert will retry
     # sending the alert until this time period has elapsed
     alert_time_limit:
-    days: 2
+      days: 2
+    
   config.json: |-
     {
       "appName": "elastalert-server",
@@ -86,6 +87,7 @@ data:
         "path": "/rule_templates"
       }
     }
+
   baserules.yaml: |-
     # Alert when there is a sudden spike in the volume of events
     
@@ -137,12 +139,12 @@ data:
     # (Required)
     # The alert is use when a match is found
     alert:
-    - "email"
+    - "debug"
     
     # (required, email specific)
     # a list of email addresses to send alerts to
-    email:
-    - "root@localhost"
+    #email:
+    #- "root@localhost"
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
