@@ -224,3 +224,21 @@ spec:
     targetPort: kapacitorport
   selector:
     k8s-app: kapacitor
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: kapacitor-ui
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+#    traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - host: kapacitor.k8shc
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: kapacitor
+            servicePort: 9092
