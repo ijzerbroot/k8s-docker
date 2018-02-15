@@ -1,0 +1,380 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elastalertconfigmap
+data:
+  elastalert.yaml: |-
+    # This is the folder that contains the rule yaml files
+    # Any .yaml file will be loaded as a rule
+    rules_folder: rules
+    
+    # How often ElastAlert will query Elasticsearch
+    # The unit can be anything from weeks to seconds
+    run_every:
+      seconds: 30
+    
+    # ElastAlert will buffer results from the most recent
+    # period of time, in case some log sources are not in real time
+    buffer_time:
+      minutes: 15
+    
+    # The Elasticsearch hostname for metadata writeback
+    # Note that every rule can have its own Elasticsearch host
+    es_host: elasticsearch.default
+    
+    # The Elasticsearch port
+    es_port: 9200
+    
+    # The AWS region to use. Set this when using AWS-managed elasticsearch
+    #aws_region: us-east-1
+    
+    # The AWS profile to use. Use this if you are using an aws-cli profile.
+    # See http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html
+    # for details
+    #profile: test
+    
+    # Optional URL prefix for Elasticsearch
+    #es_url_prefix: elasticsearch
+    
+    # Connect with TLS to Elasticsearch
+    #use_ssl: True
+    
+    # Verify TLS certificates
+    #verify_certs: True
+    
+    # GET request with body is the default option for Elasticsearch.
+    # If it fails for some reason, you can pass 'GET', 'POST' or 'source'.
+    # See http://elasticsearch-py.readthedocs.io/en/master/connection.html?highlight=send_get_body_as#transport
+    # for details
+    #es_send_get_body_as: GET
+    
+    # Option basic-auth username and password for Elasticsearch
+    #es_username: someusername
+    #es_password: somepassword
+    
+    # Use SSL authentication with client certificates client_cert must be
+    # a pem file containing both cert and key for client
+    #verify_certs: True
+    #ca_certs: /path/to/cacert.pem
+    #client_cert: /path/to/client_cert.pem
+    #client_key: /path/to/client_key.key
+    
+    # The index on es_host which is used for metadata storage
+    # This can be a unmapped index, but it is recommended that you run
+    # elastalert-create-index to set a mapping
+    writeback_index: elastalert_status
+    
+    # If an alert fails for some reason, ElastAlert will retry
+    # sending the alert until this time period has elapsed
+    alert_time_limit:
+    days: 2
+  config.json: |-
+    {
+      "appName": "elastalert-server",
+      "port": 3030,
+      "elastalertPath": "/opt/elastalert",
+      "verbose": false,
+      "es_debug": false,
+      "debug": false,
+      "rulesPath": {
+        "relative": true,
+        "path": "/rules"
+      },
+      "templatesPath": {
+        "relative": true,
+        "path": "/rule_templates"
+      }
+    }
+  baserules.yaml: |-
+    # Alert when there is a sudden spike in the volume of events
+    
+    # (Optional)
+    # Elasticsearch host
+    # es_host: elasticsearch.example.com
+    
+    # (Optional)
+    # Elasticsearch port
+    # es_port: 14900
+    
+    # (Optional) Connect with SSL to Elasticsearch
+    #use_ssl: True
+    
+    # (Optional) basic-auth username and password for Elasticsearch
+    #es_username: someusername
+    #es_password: somepassword
+    
+    # (Required)
+    # Rule name, must be unique
+    name: Errors_found
+    
+    # (Required)
+    # Type of alert.
+    # the spike rule type compares the number of events within two sliding windows to each other
+    type: frequency
+    
+    # (Required)
+    # Index to search, wildcard supported
+    index: filebeat-*
+    
+    # (Required, frequency specific)
+    # Alert when this many documents matching the query occur within a timeframe
+    num_events: 1 
+    # (Required, frequency specific)
+    # Alert when this many documents matching the query occur within a timeframe
+    timeframe:
+      minutes: 1
+    
+    # (Required)
+    # A list of Elasticsearch filters used for find events
+    # These filters are joined with AND and nested in a filtered query
+    # For more info: http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/query-dsl.html
+    filter:
+    - query:
+        query_string:
+          query: "log: *error*"
+    
+    # (Required)
+    # The alert is use when a match is found
+    alert:
+    - "email"
+    
+    # (required, email specific)
+    # a list of email addresses to send alerts to
+    email:
+    - "root@localhost"
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: elastalert
+  labels:
+    k8s-app: elastalert
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "services"
+  - "namespaces"
+  - "endpoints"
+  verbs:
+  - "get"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  namespace: default
+  name: elastalert
+  labels:
+    k8s-app: influxdb
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+subjects:
+- kind: ServiceAccount
+  name: elastalert
+  namespace: default
+  apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: elastalert
+  apiGroup: ""
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elastalert
+  namespace: default
+  labels:
+    k8s-app: elastalert
+    version: v1
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: elastalertrules-volume
+  labels:
+    type: local
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 100Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/lib/kubedata/elastalertrules"
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elastalertrules-claim
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+  namespace: default
+  labels:
+    k8s-app: elastalert
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: elastalertruletemplates-volume
+  labels:
+    type: local
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/lib/kubedata/elastalertruletemplates"
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elastalertruletemplates-claim
+#  annotations:
+#    pv.beta.kubernetes.io/gid: "2000"
+  namespace: default
+  labels:
+    k8s-app: elastalert
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+---      
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: elastalert
+  namespace: default
+  labels:
+    k8s-app: elastalert
+    version: v1
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: elastalert
+      version: v1
+  template:
+    metadata:
+      labels:
+        k8s-app: elastalert
+        version: v1
+        kubernetes.io/cluster-service: "true"
+    spec:
+      serviceAccountName: elastalert
+      volumes:
+        - name: elastalertrules
+          persistentVolumeClaim:
+            claimName: elastalertrules-claim
+        - name: elastalertruletemplates
+          persistentVolumeClaim:
+            claimName: elastalertruletemplates-claim
+        - name: eaconfig
+          configMap:
+            name: elastalertconfigmap
+            items:
+             - key: elastalert.yaml
+               path: config.yaml
+            defaultMode: 0644
+        - name: eaapiconfig
+          configMap:
+            name: elastalertconfigmap
+            items:
+             - key: config.json
+               path: config.json
+            defaultMode: 0644
+        - name: baserules
+          configMap:
+            name: elastalertconfigmap
+            items:
+             - key: baserules.yaml
+               path: baserules.yaml
+            defaultMode: 0644
+#      volumes:
+#        - name: elasticsearch-logging
+#          persistentVolumeClaim:
+#            claimName: eslogging-claim
+      containers:
+        - image: localhost/elastalert:0.1.29
+          command: ["python"]
+          args: ["/opt/elastalert/elastalert.py","--config","/elastalertconfig/config.yaml","--rule","/opt/elastalert/baserules/baserules.yaml"]
+          name: elastalert
+#          resources:
+            # need more cpu upon initialization, therefore burstable class
+#            limits:
+#              cpu: 1000m
+#            requests:
+#              cpu: 100m
+          ports:
+            - containerPort: 3030
+              name: elastalertport
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /elastalertconfig
+              name: eaconfig
+            - mountPath: /opt/elastalert-server/config
+              name: eaapiconfig
+            - mountPath: /opt/elastalert/baserules
+              name: baserules
+            - mountPath: /opt/elastalert/rules
+              name: elastalertrules
+            - mountPath: /opt/elastalert/rule_templates
+              name: elastalertruletemplates
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elastalert
+  namespace: default
+  labels:
+    k8s-app: elastalert
+    kubernetes.io/name: "Elastalert"
+spec:
+  ports:
+  - port: 3030
+    protocol: TCP
+    targetPort: elastalertport
+  selector:
+    k8s-app: elastalert
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: elastalert-ui
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+#    traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - host: elastalert.k8shc
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: elastalert
+            servicePort: 3030
