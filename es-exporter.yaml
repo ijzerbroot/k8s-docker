@@ -51,47 +51,71 @@ apiVersion: v1
 data:
   run.sh: |-
     #!/bin/bash
-
+    
     # install jq and python if necessary
     if [ ! -f /usr/bin/jq ]
     then
       dnf -y install python jq
     fi
-
+    
     cd /data
     mkdir metrics 2>/dev/null
     nohup python -m SimpleHTTPServer 8080 >/dev/null 2>&1 &
-
-    while sleep 15
+    
+    while sleep 30
     do
-
+    
     cat /dev/null > /data/newmetrics
     DATUM="`date +%Y.%m.%d`"
-
-    curl -s -X GET http://elasticsearch.default:9200/filebeat-*-${DATUM}/_search -H 'Content-Type: application/json' -d "
+    
+    curl -s -X GET http://elasticsearch:9200/filebeat-*-${DATUM}/_search -H 'Content-Type: application/json' -d "
     {
          \"from\" : 0, \"size\" : 1000,
          \"query\": {
              \"range\" : {
                  \"@timestamp\" : {
-                     \"gte\" : \"now-3m\",
-                     \"lte\" :  \"now\"
+                     \"gte\" : \"now-2m\",
+                     \"lt\" :  \"now\"
                  }
              }
          }
-     }" | jq .hits.hits[]._source.log | sed 's/ /_/g' | sed 's/"//g' | sed 's/-/_/g' | sed 's/\///g' | grep -v prometheus > /data/last3min.txt
-
-    for line in `cat /es-exporter/searches | sed 's/ /_/g' | sed 's/"//g' | sed 's/-/_/g' | sed 's/\///g'`
+    }" | jq '.hits.hits[] | "\(._source.docker.container.labels.com.docker.swarm.service.name): \(._source.log)"' | sed 's/ /_/g' | sed 's/"/+/g' | grep -v prometheus > /data/last2min.txt
+    
+    for line in `cat /es-exporter/searches | sed 's/ /_/g' | sed 's/"/+/g'`
     do
-    COUNT=`grep -c -i ${line} /data/last3min.txt`
-
+    COUNT=`grep -c -i ${line} /data/last2min.txt`
+    TEXT="`grep -i ${line} /data/last2min.txt | tr '\n' ' ' | sed 's/_/ /g' | sed 's/+/ /g'`"
+    #echo "logsrch_${line}{logtext=\"${TEXT}\"}" | sed "s/\$/ ${COUNT}/" > /data/output
     echo "logsrch_${line}" | sed "s/\$/ ${COUNT}/" > /data/output
-
+    
+    DATUM=`date +%Y-%m-%dT%H:%M:%SZ`
+    EINDDATUM=`date --date="3min" +%Y-%m-%dT%H:%M:%SZ`
+    #DATUM=`date --rfc-3339=sec`
+    #EINDDATUM=`date --date="3min" --rfc-3339=sec`
+    if [ ${COUNT} -gt 0 ]
+    then
+        curl -X POST http://alertmanager:9093/api/v1/alerts -H "Content-Type: application/json" -d "
+        [
+            {
+                \"labels\": {
+                    \"alertname\": \"${line} found in logs\"
+                },
+                \"annotations\": {
+                    \"summary\": \"${line} found in logs\",
+                    \"description\": \"${TEXT}\"
+                },
+                \"startsAt\": \"${DATUM}\",
+                \"endsAt\": \"${EINDDATUM}\",
+                \"generatorURL\": \"https://kibana.test.lift.cards\"
+            }
+    ]"
+        fi
+    
     cat /data/output >> /data/newmetrics
-
+    
     done
     cp /data/newmetrics /data/metrics/index.html
-
+    
     done
 ---
 kind: ConfigMap
