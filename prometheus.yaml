@@ -369,10 +369,6 @@ data:
         action: replace
         target_label: kubernetes_pod_name
 
-    - job_name: 'es-exporter'
-      static_configs:
-      - targets: ['es-exporter.monitoring:8080']
-
   alert.rules: |-
     groups:
     - name: targets
