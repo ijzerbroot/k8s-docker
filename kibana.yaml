@@ -72,7 +72,7 @@ spec:
     spec:
       serviceAccountName: kibana
       containers:
-        - image: docker.elastic.co/kibana/kibana-oss:6.1.1
+        - image: docker.elastic.co/kibana/kibana-oss:6.2.2
 #        - image: localhost/kibana-logtrail:6.1.1
           name: kibana
           resources:
