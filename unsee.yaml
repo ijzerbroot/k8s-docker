@@ -75,7 +75,7 @@ spec:
               value: "default:http://alertmanager:9093"
             - name: LOG_LEVEL
               value: "error"
-          image: docker.io/cloudflare/unsee:v0.8.0
+          image: docker.io/cloudflare/unsee:v0.9.1
           imagePullPolicy: IfNotPresent
           name: unsee
           ports:

@@ -55,12 +55,10 @@ data:
     # install jq and python if necessary
     if [ ! -f /usr/bin/jq ]
     then
-      dnf -y install python jq
+      dnf -y install jq
     fi
     
     cd /data
-    mkdir metrics 2>/dev/null
-    nohup python -m SimpleHTTPServer 8080 >/dev/null 2>&1 &
     
     while sleep 30
     do
@@ -81,24 +79,32 @@ data:
          }
     }" | jq '.hits.hits[] | "\(._source.docker.container.labels.com.docker.swarm.service.name): \(._source.log)"' | sed 's/ /_/g' | sed 's/"/+/g' | grep -v prometheus > /data/last2min.txt
     
+    
+    cat /dev/null > /data/foutenunfiltered.txt
     for line in `cat /es-exporter/searches | sed 's/ /_/g' | sed 's/"/+/g'`
     do
-    COUNT=`grep -c -i ${line} /data/last2min.txt`
-    TEXT="`grep -i ${line} /data/last2min.txt | tr '\n' ' ' | sed 's/_/ /g' | sed 's/+/ /g'`"
-    #echo "logsrch_${line}{logtext=\"${TEXT}\"}" | sed "s/\$/ ${COUNT}/" > /data/output
-    echo "logsrch_${line}" | sed "s/\$/ ${COUNT}/" > /data/output
+      grep -i ${line} /data/last2min.txt >> /data/foutenunfiltered.txt
+    done
+    
+    # Filter out NOT lines
+    cp /data/foutenunfiltered.txt /data/foutenfiltered.txt
+    for notline in `grep '^NOT' /es-exporter/searches | sed 's/ /_/g' | sed 's/"/+/g' | sed 's/^NOT//'`
+    do
+      grep -v -i ${notline} /data/foutenfiltered.txt > /data/foutenfiltered.txt.tmp && cp /data/foutenfiltered.txt.tmp /data/foutenfiltered.txt
+    done
+    COUNT=`grep -c -i ${line} /data/foutenfiltered.txt`
+    TEXT="`grep -i ${line} /data/foutenfiltered.txt | tr '\n' ' ' | sed 's/_/ /g' | sed 's/+/ /g'`"
     
     DATUM=`date +%Y-%m-%dT%H:%M:%SZ`
     EINDDATUM=`date --date="3min" +%Y-%m-%dT%H:%M:%SZ`
-    #DATUM=`date --rfc-3339=sec`
-    #EINDDATUM=`date --date="3min" --rfc-3339=sec`
     if [ ${COUNT} -gt 0 ]
     then
-        curl -X POST http://alertmanager:9093/api/v1/alerts -H "Content-Type: application/json" -d "
+        curl -s -X POST http://alertmanager:9093/api/v1/alerts -H "Content-Type: application/json" -d "
         [
             {
                 \"labels\": {
-                    \"alertname\": \"${line} found in logs\"
+                    \"alertname\": \"${line} found in logs\",
+                    \"channel\": \"exceptions\"
                 },
                 \"annotations\": {
                     \"summary\": \"${line} found in logs\",
@@ -106,15 +112,12 @@ data:
                 },
                 \"startsAt\": \"${DATUM}\",
                 \"endsAt\": \"${EINDDATUM}\",
-                \"generatorURL\": \"https://kibana.test.lift.cards\"
+                \"generatorURL\": \"https://kibana.k8shc\"
             }
     ]"
         fi
     
-    cat /data/output >> /data/newmetrics
-    
     done
-    cp /data/newmetrics /data/metrics/index.html
     
     done
 ---
