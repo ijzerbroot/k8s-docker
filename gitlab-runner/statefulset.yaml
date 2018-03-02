@@ -26,7 +26,7 @@ spec:
                   values:
                   - gitlab-ci-runner
       initContainers:
-      - image: gitlab/gitlab-runner:v10.3.0
+      - image: gitlab/gitlab-runner:latest
         command:
           - /bin/bash
           - -c
@@ -44,7 +44,7 @@ spec:
         runAsUser: 999
         supplementalGroups: [999]
       containers:
-      - image: gitlab/gitlab-runner:v10.3.0
+      - image: gitlab/gitlab-runner:latest
         command:
         - /bin/bash
         - -c
