@@ -58,7 +58,7 @@ metadata:
 spec:
   storageClassName: manual
   capacity:
-    storage: 10Gi
+    storage: 20Gi
   accessModes:
     - ReadWriteOnce
   hostPath:
@@ -113,7 +113,7 @@ spec:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
+      storage: 20Gi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -210,8 +210,8 @@ spec:
 #            requests:
 #              memory: 800Mi
           ports:
-            - containerPort: 443
-              name: https
+            - containerPort: 5005
+              name: registry
               protocol: TCP
             - containerPort: 80
               name: http
@@ -239,10 +239,10 @@ metadata:
     kubernetes.io/name: "gitlab"
 spec:
   ports:
-  - port: 443
-    name: https
+  - port: 5005
+    name: registry
     protocol: TCP
-    targetPort: https
+    targetPort: registry
   - port: 80
     name: http
     protocol: TCP
@@ -270,10 +270,10 @@ spec:
           backend:
             serviceName: gitlab
             servicePort: 80
-  - host: gitlabs.k8shc
+  - host: gitlabreg.k8shc
     http:
       paths:
         - path: /
           backend:
             serviceName: gitlab
-            servicePort: 443
+            servicePort: 5005
