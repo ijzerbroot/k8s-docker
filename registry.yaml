@@ -1,0 +1,99 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: registry
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  - cluster
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: registry
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: registry
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: registry
+subjects:
+- kind: ServiceAccount
+  name: registry
+  namespace: default
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: registry
+  namespace: default
+  labels:
+    k8s-app: registry
+    version: v1
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: registry
+      version: v1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        name: registry
+        k8s-app: registry
+        version: v1
+        kubernetes.io/cluster-service: "true"
+    spec:
+      serviceAccountName: registry
+      containers:
+        - env:
+          - name: REGISTRY_HTTP_ADDR
+            value: "127.0.0.1:5000"
+          image: registry:2
+          imagePullPolicy: IfNotPresent
+          name: registry
+          ports:
+            - containerPort: 5000
+              protocol: TCP
+      restartPolicy: Always
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+  namespace: default
+spec:
+  ports:
+  - port: 5000
+    protocol: TCP
+    targetPort: 5000
+  selector:
+    k8s-app: registry

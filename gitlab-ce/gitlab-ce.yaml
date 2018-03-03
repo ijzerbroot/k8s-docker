@@ -197,6 +197,13 @@ spec:
         - name: gitlabconfig
           persistentVolumeClaim:
             claimName: gitlab-config-claim
+        - name: gitlabrb
+          configMap:
+            name: gitlab-cm
+            items:
+             - key: gitlab.rb
+               path: gitlab.rb
+            defaultMode: 0644
       containers:
         - image: gitlab/gitlab-ce:latest
 #            allowPrivilegeEscalation: false
@@ -213,7 +220,7 @@ spec:
             - containerPort: 5005
               name: registry
               protocol: TCP
-            - containerPort: 80
+            - containerPort: 8888
               name: http
               protocol: TCP
             - containerPort: 22
@@ -226,6 +233,8 @@ spec:
               name: gitlablogs
             - mountPath: /etc/gitlab
               name: gitlabconfig
+#            - mountPath: /etc/gitlab
+#              name: gitlab-cm
 ---
 apiVersion: v1
 kind: Service
@@ -243,7 +252,7 @@ spec:
     name: registry
     protocol: TCP
     targetPort: registry
-  - port: 80
+  - port: 8888
     name: http
     protocol: TCP
     targetPort: http
@@ -261,6 +270,10 @@ metadata:
   namespace: default
   annotations:
     kubernetes.io/ingress.class: traefik
+#    traefik.ingress.kubernetes.io/preserve-host: true
+    traefik.frontend.passHostHeader: "true"
+#    ingress.kubernetes.io/custom-request-headers: "X-Forwarded-Proto = https"
+    ingress.kubernetes.io/custom-request-headers: "Docker-Distribution-Api-Version = registry/2.0"
 spec:
   rules:
   - host: gitlab.k8shc
@@ -269,7 +282,7 @@ spec:
         - path: /
           backend:
             serviceName: gitlab
-            servicePort: 80
+            servicePort: 8888
   - host: gitlabreg.k8shc
     http:
       paths:
