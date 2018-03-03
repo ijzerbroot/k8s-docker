@@ -271,7 +271,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
 #    traefik.ingress.kubernetes.io/preserve-host: true
-    traefik.frontend.passHostHeader: "true"
+#    traefik.frontend.passHostHeader: "true"
 #    ingress.kubernetes.io/custom-request-headers: "X-Forwarded-Proto = https"
     ingress.kubernetes.io/custom-request-headers: "Docker-Distribution-Api-Version = registry/2.0"
 spec:
