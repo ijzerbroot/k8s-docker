@@ -15,16 +15,21 @@ spec:
       labels:
         app: gitlab-ci-runner
     spec:
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: "kubernetes.io/hostname"
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - gitlab-ci-runner
+#      affinity:
+#        podAntiAffinity:
+#          requiredDuringSchedulingIgnoredDuringExecution:
+#            - topologyKey: "kubernetes.io/hostname"
+#              labelSelector:
+#                matchExpressions:
+#                - key: app
+#                  operator: In
+#                  values:
+#                  - gitlab-ci-runner
+      hostAliases:
+      - ip: "192.168.56.10"
+        hostnames:
+        - "gitlab.k8shc"
+        - "gitlabreg.k8shc"
       initContainers:
       - image: gitlab/gitlab-runner:latest
         command:
@@ -48,6 +53,7 @@ spec:
         command:
         - /bin/bash
         - -c
+#        - "/usr/bin/gitlab-ci-multi-runner register -r '$(GITLAB_CI_TOKEN)'; sed -i 's/^concurrent.*/concurrent = $(RUNNER_REQUEST_CONCURRENCY)/' /home/gitlab-runner/.gitlab-runner/config.toml; exec /usr/bin/gitlab-ci-multi-runner run"
         - "/usr/bin/gitlab-ci-multi-runner register -r '$(GITLAB_CI_TOKEN)'; sed -i 's/^concurrent.*/concurrent = $(RUNNER_REQUEST_CONCURRENCY)/' /home/gitlab-runner/.gitlab-runner/config.toml; exec /usr/bin/gitlab-ci-multi-runner run"
         envFrom:
         - configMapRef:
