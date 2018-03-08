@@ -220,7 +220,7 @@ spec:
             - containerPort: 5005
               name: registry
               protocol: TCP
-            - containerPort: 80
+            - containerPort: 8888
               name: http
               protocol: TCP
             - containerPort: 22
@@ -253,7 +253,7 @@ spec:
     name: registry
     protocol: TCP
     targetPort: registry
-  - port: 80
+  - port: 8888
     name: http
     protocol: TCP
     targetPort: http
@@ -277,13 +277,13 @@ metadata:
     ingress.kubernetes.io/custom-request-headers: "Docker-Distribution-Api-Version = registry/2.0"
 spec:
   rules:
-  - host: gitlab.default
+  - host: gitlab.k8shc
     http:
       paths:
         - path: /
           backend:
             serviceName: gitlab
-            servicePort: 80
+            servicePort: 8888
   - host: gitlabreg.k8shc
     http:
       paths:

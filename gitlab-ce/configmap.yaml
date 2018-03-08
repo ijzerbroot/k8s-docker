@@ -20,7 +20,7 @@ data:
     ##! URL on which GitLab will be reachable.
     ##! For more details on configuring external_url see:
     ##! https://docs.gitlab.com/omnibus/settings/configuration.html#configuring-the-external-url-for-gitlab
-    external_url 'https://gitlab.k8shc'
+    external_url 'http://gitlab.k8shc'
 
     ## Roles for multi-instance GitLab
     ##! The default is to have no roles enabled, which results in GitLab running as an all-in-one instance.
@@ -859,7 +859,7 @@ data:
     # nginx['ssl_session_timeout'] = "5m"
 
     # nginx['ssl_dhparam'] = nil # Path to dhparams.pem, eg. /etc/gitlab/ssl/dhparams.pem
-    nginx['listen_addresses'] = ['127.0.0.1', '[::]']
+    nginx['listen_addresses'] = ['0.0.0.0', '[::]']
 
     ##! **Defaults to forcing web browsers to always communicate using only HTTPS**
     ##! Docs: https://docs.gitlab.com/omnibus/settings/nginx.html#setting-http-strict-transport-security
@@ -882,8 +882,8 @@ data:
       "Host" => "$http_host_with_default",
     #  "X-Real-IP" => "$remote_addr",
       "X-Forwarded-For" => "$proxy_add_x_forwarded_for",
-      "X-Forwarded-Proto" => "https",
-      "X-Forwarded-Ssl" => "on",
+    #  "X-Forwarded-Proto" => "https",
+    #  "X-Forwarded-Ssl" => "on",
     #  "Upgrade" => "$http_upgrade",
     #  "Connection" => "$connection_upgrade"
      }
@@ -1294,8 +1294,8 @@ data:
       "Host" => "$http_host",
       "X-Real-IP" => "$remote_addr",
       "X-Forwarded-For" => "$proxy_add_x_forwarded_for",
-      "X-Forwarded-Proto" => "https",
-      "X-Forwarded-Ssl" => "on"
+      #"X-Forwarded-Proto" => "https",
+      #"X-Forwarded-Ssl" => "on"
     }
 
     registry_nginx['listen_port'] = 5005

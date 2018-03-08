@@ -1,0 +1,194 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: jenkins
+  labels:
+    k8s-app: jenkins
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "services"
+  - "namespaces"
+  - "endpoints"
+  verbs:
+  - "get"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  namespace: default
+  name: jenkins
+  labels:
+    k8s-app: jenkins
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+subjects:
+- kind: ServiceAccount
+  name: jenkins
+  namespace: default
+  apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: jenkins
+  apiGroup: ""
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: default
+  labels:
+    k8s-app: jenkins
+    version: v1
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: jenkins-data-volume
+  labels:
+    type: local
+  annotations:
+    pv.beta.kubernetes.io/gid: "2000"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 18Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/lib/kubedata/jenkinsdata"
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-data-claim
+  annotations:
+    pv.beta.kubernetes.io/gid: "2000"
+  namespace: default
+  labels:
+    k8s-app: jenkins
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 18Gi
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: default
+  labels:
+    k8s-app: jenkins
+    version: v1
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: jenkins
+      version: v1
+  template:
+    metadata:
+      labels:
+        k8s-app: jenkins
+        version: v1
+        kubernetes.io/cluster-service: "true"
+    spec:
+      serviceAccountName: jenkins
+#      securityContext:
+#        runAsUser: 2000
+#        fsGroup: 2000
+#      affinity:
+# Make sure you have labelled the worker nodes with kubectl label nodes nodename role=worker-node
+#        nodeAffinity:
+#          requiredDuringSchedulingIgnoredDuringExecution:
+#            nodeSelectorTerms:
+#            - matchExpressions:
+#              - key: role
+#                operator: In
+#                values:
+#                - worker-node
+      hostAliases:
+      - ip: "192.168.56.10"
+        hostnames:
+        - "gitlab.k8shc"
+        - "gitlabreg.k8shc"
+        - "jenkins.k8shc"
+      volumes:
+        - name: jenkinsdata
+          persistentVolumeClaim:
+            claimName: jenkins-data-claim
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+      containers:
+        - image: jenkins/jenkins:lts
+#            allowPrivilegeEscalation: false
+          name: jenkins
+#          securityContext:
+#            allowPrivilegeEscalation: false
+#          resources:
+            # need more cpu upon initialization, therefore burstable class
+#            limits:
+#              memory: 1200Mi
+#            requests:
+#              memory: 800Mi
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+            - containerPort: 50000
+              name: transport
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/jenkins_home
+              name: jenkinsdata
+            - mountPath: /var/run/docker.sock
+              name: docker-socket
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+  namespace: default
+  labels:
+    k8s-app: jenkins
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+    kubernetes.io/name: "jenkins"
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: http
+  selector:
+    k8s-app: jenkins
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: jenkins-ui
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: jenkins.k8shc
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: jenkins
+            servicePort: 8080

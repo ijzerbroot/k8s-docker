@@ -13,7 +13,7 @@ data:
     [[runners]]
       name = "gitlab-runner"
       request_concurrency = 4
-      url = "http://gitlab.default/ci"
+      url = "http://gitlab.k8shc/ci"
       token = "c45c570d9b84ad0655a3a31eddccb2"
       executor = "kubernetes"
       [runners.cache]
@@ -27,7 +27,7 @@ data:
         cpu_limit = "100m"
         extra_hosts = ["gitlabreg.k8shc:192.168.56.10","gitlab.k8shc:192.168.56.10"]
         memory_limit = "1Gi"
-        clone_url = "http://gitlab.default"
+        clone_url = "http://gitlab.k8shc"
         service_cpu_limit = "100m"
         service_memory_limit = "1Gi"
         helper_cpu_limit = "100m"
@@ -54,7 +54,7 @@ metadata:
   namespace: gitlab-build
 data:
   REGISTER_NON_INTERACTIVE: "true"
-  CI_SERVER_URL: "http://gitlab.default/ci"
+  CI_SERVER_URL: "http://gitlab.k8shc/ci"
   METRICS_SERVER: "0.0.0.0:9100"
   RUNNER_REQUEST_CONCURRENCY: "4"
   RUNNER_EXECUTOR: "kubernetes"
